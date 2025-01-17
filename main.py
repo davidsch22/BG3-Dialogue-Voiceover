@@ -5,7 +5,7 @@ import dxcam
 from PIL import Image
 from pytesseract import pytesseract
 from gtts import gTTS
-from playsound import playsound
+from pygame import mixer
 from vision import Vision
 from hsvfilter import HsvFilter
 
@@ -24,6 +24,11 @@ hsv_filter = HsvFilter(17, 29, 178, 32, 133, 255, 0, 0, 0, 0)
 
 # Providing the tesseract executable location to pytesseract library
 pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+# Initialize the audio player
+mixer.init()
+
+TTS_FILE = "tts.wav"
 
 # Saving the last text that was read from the screen
 previous_text = ""
@@ -49,15 +54,22 @@ while True:
     # Read the text from the frame
     text = pytesseract.image_to_string(frame)
 
-    # Passing the text and language to the TTS engine
+    # If text is detected and it's not repeating the same one
     if text != "" and text != previous_text:
+        # Interrupt previous audio if already playing
+        mixer.music.stop()
+        mixer.music.unload()
+        if os.path.isfile(TTS_FILE):
+            os.remove(TTS_FILE)
+        # Save text so it doesn't repeat while highlighted
         previous_text = text
+        # Passing the text and language to the TTS engine
         text_to_speech = gTTS(
-            text=text, lang="en")
+            text=text, lang="en-GB", tld="co.uk")
         # Save TTS audio and play it
-        text_to_speech.save("ScreenRead.mp3")
-        playsound("ScreenRead.mp3")
-        os.remove("ScreenRead.mp3")
+        text_to_speech.save(TTS_FILE)
+        mixer.music.load(TTS_FILE)
+        mixer.music.play()
 
     # Debug the loop rate
     print('FPS {}'.format(1 / (time() - loop_time)))
@@ -68,6 +80,10 @@ while True:
     if cv.waitKey(1) == ord('q'):
         cv.destroyAllWindows()
         camera.stop()
+        mixer.music.stop()
+        mixer.music.unload()
+        if os.path.isfile(TTS_FILE):
+            os.remove(TTS_FILE)
         break
 
 print('Done')
