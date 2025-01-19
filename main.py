@@ -4,10 +4,11 @@ import cv2 as cv
 import dxcam
 from PIL import Image
 from pytesseract import pytesseract
-from gtts import gTTS
+from TTS.api import TTS
 from pygame import mixer
 from vision import Vision
 from hsvfilter import HsvFilter
+from tts import TTS
 
 # Initialize and start the screen capture thread
 camera = dxcam.create(output_color="RGB")
@@ -24,6 +25,9 @@ hsv_filter = HsvFilter(17, 29, 178, 32, 133, 255, 0, 0, 0, 0)
 
 # Providing the tesseract executable location to pytesseract library
 pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+# Initialize the TTS class
+tts = TTS()
 
 # Initialize the audio player
 mixer.init()
@@ -63,11 +67,9 @@ while True:
             os.remove(TTS_FILE)
         # Save text so it doesn't repeat while highlighted
         previous_text = text
-        # Passing the text and language to the TTS engine
-        text_to_speech = gTTS(
-            text=text, lang="en-GB", tld="co.uk")
-        # Save TTS audio and play it
-        text_to_speech.save(TTS_FILE)
+        # Pass the text to the TTS engine
+        tts.infer(text, TTS_FILE)
+        # Play TTS audio
         mixer.music.load(TTS_FILE)
         mixer.music.play()
 
