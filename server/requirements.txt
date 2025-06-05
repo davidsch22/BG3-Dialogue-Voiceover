@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cu124
 coqui-tts==0.26.0
 deepspeed==0.16.5
 Flask==3.1.1
