@@ -172,3 +172,7 @@ cython_debug/
 
 # Coqui TTS models
 tts/
+
+# Nuitka output
+bg3dialogue_client.build/
+bg3dialogue_client.dist/
