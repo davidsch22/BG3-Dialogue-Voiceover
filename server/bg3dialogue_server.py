@@ -1,7 +1,7 @@
-import os
 import torch
 import torchaudio
 from flask import Flask, request, make_response
+from waitress import serve
 from PIL import Image
 from pytesseract import pytesseract
 from tts import TTS
@@ -26,7 +26,6 @@ def process_image():
         return {"error": "No image provided in the request"}, 400
     img_file = request.files["image"]
 
-    # TODO: Convert image file to PIL
     frame = Image.open(img_file.stream)
 
     # Read the text from the frame
@@ -55,9 +54,10 @@ def process_image():
         return response
 
     response = make_response()
+    response.headers["text"] = text
     response.status_code = 304
     return response
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
+    serve(app, host='0.0.0.0', port=8080)
