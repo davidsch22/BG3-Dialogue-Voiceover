@@ -7,14 +7,11 @@ class Vision:
     # Constants
     TRACKBAR_WINDOW = "Trackbars"
 
-    # Properties
-    method = None
-
     # Constructor
-    def __init__(self, method=cv.TM_CCOEFF_NORMED):
-        # There are 6 methods to choose from:
-        # TM_CCOEFF, TM_CCOEFF_NORMED, TM_CCORR, TM_CCORR_NORMED, TM_SQDIFF, TM_SQDIFF_NORMED
-        self.method = method
+    def __init__(self):
+        # Initialize the trackbar window
+        # self.init_control_gui()
+        pass
 
     # Create GUI window with controls for adjusting arguments in real-time
     def init_control_gui(self):
@@ -66,11 +63,6 @@ class Vision:
         hsv_filter.vSub = cv.getTrackbarPos('VSub', self.TRACKBAR_WINDOW)
         return hsv_filter
 
-    def get_other_controls(self):
-        thresh1 = cv.getTrackbarPos('Thresh 1', self.TRACKBAR_WINDOW)
-        thresh2 = cv.getTrackbarPos('Thresh 2', self.TRACKBAR_WINDOW)
-        return (thresh1, thresh2)
-
     # Given an image and an HSV filter, apply the filter and return the resulting image.
     # If a filter is not supplied, the control GUI trackbars will be used
     def apply_hsv_filter(self, input_img, hsv_filter=None):
@@ -116,91 +108,82 @@ class Vision:
             c[c > lim] -= amount
         return c
 
-    def crop_text(self, input_img: np.ndarray, hsv_filter: HsvFilter):
+    def crop_text(self, input_img: np.ndarray, hsv_filter=None):
         result = cv.bilateralFilter(input_img, 3, 500, 500)
 
         result = cv.cvtColor(result, cv.COLOR_BGR2HSV)
+
+        if not hsv_filter:
+            hsv_filter = self.get_hsv_filter_from_controls()
 
         # Set minimum and maximum HSV values to display
         text_lower = np.array(
             [hsv_filter.hMin, hsv_filter.sMin, hsv_filter.vMin])
         text_upper = np.array(
             [hsv_filter.hMax, hsv_filter.sMax, hsv_filter.vMax])
-        black_lower = np.array([0, 0, 0])
-        black_upper = np.array([179, 254, 57])
 
-        new_color = np.array([0, 0, 100])
+        new_color = np.array([0, 0, 0])
 
         # Apply the thresholds
         text_mask = cv.inRange(result, text_lower, text_upper)
-        black_mask = cv.inRange(result, black_lower, black_upper)
-        mask = cv.bitwise_or(text_mask, black_mask)
-        mask_inv = cv.bitwise_not(mask)
+        mask_inv = cv.bitwise_not(text_mask)
         result[mask_inv > 0] = new_color
 
         result = cv.cvtColor(result, cv.COLOR_HSV2BGR)
 
         result = cv.cvtColor(result, cv.COLOR_BGR2GRAY)
-        thresh1 = 456
-        thresh2 = 839
+        thresh1 = 0
+        thresh2 = 497
         # thresh1 = cv.getTrackbarPos('Thresh 1', self.TRACKBAR_WINDOW)
         # thresh2 = cv.getTrackbarPos('Thresh 2', self.TRACKBAR_WINDOW)
         result = cv.Canny(result, thresh1, thresh2, L2gradient=True)
 
-        kernel = np.ones((2, 16), np.uint8)
+        kernel = np.ones((3, 16), np.uint8)
         result = cv.dilate(result, kernel)
 
         # Finding contours
         contours, hierarchy = cv.findContours(
             result, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
-        # Return the largest contour cause it's likely the dialogue text
+        # Get the largest contour cause it's likely the dialogue text
         if len(contours) == 0:
             return None
         text_contour = max(contours, key=cv.contourArea)
-        return text_contour
 
-    def filter_text(self, input_img: np.ndarray):
-        text_img = cv.cvtColor(input_img, cv.COLOR_BGR2GRAY)
-        # _, text_img = cv.threshold(text_img, 0, 255, cv.THRESH_BINARY)
+        if text_contour is None:
+            return None
+
+        # Return the original image cropped by the contour
+        text_img = input_img.copy()
+        mask = np.zeros_like(input_img)
+        cv.drawContours(mask, [text_contour],
+                        0, (255, 255, 255), -1)
+
+        text_img = cv.bitwise_and(input_img, mask)
+
+        (x, y, w, h) = cv.boundingRect(text_contour)
+        text_img = text_img[y:y+h, x:x+w]
+        return text_img
+
+    def filter_text(self, input_img: np.ndarray, hsv_filter=None):
+        text_img = cv.bilateralFilter(input_img, 3, 50, 50)
+
+        if not hsv_filter:
+            hsv_filter = self.get_hsv_filter_from_controls()
+
+        text_img = self.apply_hsv_filter(
+            text_img, hsv_filter)
+
+        text_img = cv.cvtColor(text_img, cv.COLOR_BGR2GRAY)
 
         text_img = cv.resize(text_img, (0, 0), fx=1.5, fy=1.5)
 
         text_img = cv.copyMakeBorder(
             text_img, 5, 5, 5, 5, cv.BORDER_CONSTANT, None, (0, 0, 0))
 
-        # text_img = cv.bilateralFilter(text_img, 5, 500, 20)
-
-        # text_img = cv.cvtColor(text_img, cv.COLOR_BGR2HSV)
-        # hsv = self.get_hsv_filter_from_controls()
-        # lower = np.array([19, 36, 144])
-        # upper = np.array([32, 116, 255])
-        # lower = np.array([hsv.hMin, hsv.sMin, hsv.vMin])
-        # upper = np.array([hsv.hMax, hsv.sMax, hsv.vMax])
-        # mask = cv.inRange(text_img, lower, upper)
-        # text_img = cv.bitwise_and(text_img, text_img, mask=mask)
-        # text_img = cv.cvtColor(text_img, cv.COLOR_HSV2BGR)
-
         erode_kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 2))
         text_img = cv.erode(text_img, erode_kernel)
-        # erode_kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 1))
-        # text_img = cv.erode(text_img, erode_kernel)
-
-        # text_img = cv.resize(text_img, (0, 0), fx=0.67, fy=0.67)
-
-        # dilate_kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 2))
-        # text_img = cv.dilate(text_img, dilate_kernel, iterations=3)
-        # text_img = cv.morphologyEx(text_img, cv.MORPH_OPEN, erode_kernel)
-
-        # _, text_img = cv.threshold(
-        #     text_img, 40, 255, cv.THRESH_BINARY)
 
         text_img = cv.bitwise_not(text_img)
-
-        # thresh1, thresh2 = self.get_other_controls()
-        # text_img = cv.Canny(text_img, thresh1, thresh2)
-
-        # text_img = cv.adaptiveThreshold(
-        #     text_img, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 3, 10)
 
         return text_img

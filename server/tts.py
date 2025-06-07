@@ -29,7 +29,7 @@ class TTS:
             "bg3_tav5_voice.wav"])
 
     def infer(self, text):
-        print("Inferring...")
+        print("Inferring text:", text)
         out = self.model.inference(
             text,
             "en",
