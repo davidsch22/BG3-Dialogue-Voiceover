@@ -1,12 +1,14 @@
+import os
 import torch
 import torchaudio
-from flask import Flask, request, make_response
+from flask import Flask, request, make_response, send_file
 from waitress import serve
 from PIL import Image
 from pytesseract import pytesseract
 from tts import TTS
 
 TTS_FILE = "tts.wav"
+CLIENT_EXE = "BG3_Dialogue_Voiceover.zip"
 
 app = Flask(__name__)
 
@@ -34,6 +36,7 @@ def process_image():
 
     text = text.replace('’', '\'')
     text = text.replace('\n', ' ')
+    text = text.replace('|', 'I')
 
     # If text is detected and it's not repeating the same one
     global previous_text
@@ -47,6 +50,7 @@ def process_image():
             audio).unsqueeze(0), 24000)
         with open(TTS_FILE, 'rb') as f:
             audio_data = f.read()
+            f.close()
         response = make_response(audio_data)
         response.headers["Content-Type"] = "audio/wav"
         response.headers["text"] = text
@@ -59,5 +63,14 @@ def process_image():
     return response
 
 
+@app.route("/client", methods=["GET"])
+def download_client():
+    return send_file(CLIENT_EXE, as_attachment=True)
+
+
 if __name__ == "__main__":
-    serve(app, host='0.0.0.0', port=8080)
+    try:
+        serve(app, host='0.0.0.0', port=8080)
+    finally:
+        if os.path.isfile(TTS_FILE):
+            os.remove(TTS_FILE)

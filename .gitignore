@@ -176,3 +176,6 @@ tts/
 # Nuitka output
 bg3dialogue_client.build/
 bg3dialogue_client.dist/
+
+# Hosted downloadable client
+BG3_Dialogue_Voiceover.zip

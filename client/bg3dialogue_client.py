@@ -32,9 +32,6 @@ class BG3DialogueVoiceoverClient:
         # Initialize the Vision class
         self.vision = Vision()
 
-        # Initialize the trackbar window
-        # self.vision.init_control_gui()
-
         # Initialize the audio player
         mixer.init()
 
@@ -69,63 +66,50 @@ class BG3DialogueVoiceoverClient:
                     print("ERROR: Screen resolution not compatible")
                     break
 
-                # Filter everything out except the highlighted option
-                hsv_filter = HsvFilter(20, 22, 145, 33, 137, 255, 0, 0, 0, 0)
-                filtered_cont = self.vision.crop_text(
+                # Filter and crop everything out except the highlighted option
+                hsv_filter = HsvFilter(19, 122, 77, 20, 140, 218, 0, 0, 0, 0)
+                cropped = self.vision.crop_text(
                     screenshot, hsv_filter)
 
-                # Cropping the text block for giving input to OCR
-                if not filtered_cont is None:
-                    text_img = screenshot.copy()
-                    mask = np.zeros_like(screenshot)
-                    cv.drawContours(mask, [filtered_cont],
-                                    0, (255, 255, 255), -1)
-
-                    text_img = cv.bitwise_and(screenshot, mask)
-
-                    (x, y, w, h) = cv.boundingRect(filtered_cont)
-                    text_img = text_img[y:y+h, x:x+w]
-
-                    text_img = cv.bilateralFilter(text_img, 3, 50, 50)
-
+                if not cropped is None:
+                    # Filter the cropped text block for input to OCR
                     hsv_filter = HsvFilter(
-                        19, 0, 164, 32, 255, 255, 0, 0, 0, 0)
-                    text_img = self.vision.apply_hsv_filter(
-                        text_img, hsv_filter)
-
-                    text_img = self.vision.filter_text(text_img)
+                        18, 0, 100, 21, 255, 255, 0, 0, 0, 0)
+                    text_img = self.vision.filter_text(cropped, hsv_filter)
 
                     # cv.imshow('Processed', text_img)
 
-                    # Convert the image from nparray to PIL
-                    frame = Image.fromarray(text_img)
-                    if os.path.isfile(IMAGE_FILE):
-                        os.remove(IMAGE_FILE)
-                    frame.save(IMAGE_FILE)
+                    # If audio isn't already playing
+                    if not mixer.music.get_busy():
+                        # Convert the image from nparray to PIL
+                        frame = Image.fromarray(text_img)
+                        if os.path.isfile(IMAGE_FILE):
+                            os.remove(IMAGE_FILE)
+                        frame.save(IMAGE_FILE)
 
-                    # Send image to TTS API
-                    # CHANGE THIS VALUE TO WHERE THE SERVER'S ROUTE IS HOSTED
-                    IMAGE_TO_AUDIO_URL = "<<SET ME>>"
-                    with open(IMAGE_FILE, 'rb') as f:
-                        files = {"image": f}
-                        response = requests.post(
-                            IMAGE_TO_AUDIO_URL, files=files)
-                        f.close()
-
-                    # If response has audio and audio isn't already playing
-                    if response.status_code == 200 and not mixer.music.get_busy():
-                        text = response.headers["text"]
-                        self.ui.set_dialogue_text(text)
-                        mixer.music.unload()
-                        # Save returned audio file
-                        if os.path.isfile(TTS_FILE):
-                            os.remove(TTS_FILE)
-                        with open(TTS_FILE, 'wb') as f:
-                            f.write(response.content)
+                        # Send image to TTS API
+                        # CHANGE THIS VALUE TO WHERE THE SERVER'S ROUTE IS HOSTED
+                        IMAGE_TO_AUDIO_URL = "<<SET ME>>"
+                        with open(IMAGE_FILE, 'rb') as f:
+                            files = {"image": f}
+                            response = requests.post(
+                                IMAGE_TO_AUDIO_URL, files=files)
                             f.close()
-                        # Play TTS audio
-                        mixer.music.load(TTS_FILE)
-                        mixer.music.play()
+
+                        # If response has audio
+                        if response.status_code == 200:
+                            text = response.headers["text"]
+                            self.ui.set_dialogue_text(text)
+                            mixer.music.unload()
+                            # Save returned audio file
+                            if os.path.isfile(TTS_FILE):
+                                os.remove(TTS_FILE)
+                            with open(TTS_FILE, 'wb') as f:
+                                f.write(response.content)
+                                f.close()
+                            # Play TTS audio
+                            mixer.music.load(TTS_FILE)
+                            mixer.music.play()
 
                 # Debug the loop rate
                 self.fps = 1 / (time() - self.loop_time)
