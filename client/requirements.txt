@@ -1,0 +1,8 @@
+dxcam==0.0.5
+keyboard==0.13.5
+numpy==1.26.4
+opencv-python==4.11.0.86
+pillow==11.2.1
+pygame==2.6.1
+PySimpleGUI-4-foss==4.60.4.1
+requests==2.32.3
