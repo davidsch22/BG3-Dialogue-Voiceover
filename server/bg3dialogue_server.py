@@ -1,14 +1,13 @@
 import os
 import torch
 import torchaudio
-from flask import Flask, request, make_response, send_file
+from flask import Flask, request, make_response
 from waitress import serve
 from PIL import Image
 from pytesseract import pytesseract
 from tts import TTS
 
 TTS_FILE = "tts.wav"
-CLIENT_EXE = "BG3_Dialogue_Voiceover.zip"
 
 app = Flask(__name__)
 
@@ -61,11 +60,6 @@ def process_image():
     response.headers["text"] = text
     response.status_code = 304
     return response
-
-
-@app.route("/client", methods=["GET"])
-def download_client():
-    return send_file(CLIENT_EXE, as_attachment=True)
 
 
 if __name__ == "__main__":
