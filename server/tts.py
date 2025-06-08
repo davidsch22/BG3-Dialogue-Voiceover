@@ -34,6 +34,7 @@ class TTS:
             text,
             "en",
             self.gpt_cond_latent,
-            self.speaker_embedding
+            self.speaker_embedding,
+            speed=1.25
         )
         return out["wav"]

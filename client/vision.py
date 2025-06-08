@@ -1,6 +1,6 @@
 import cv2 as cv
 import numpy as np
-from client.filters import HsvFilter
+from filters import HsvFilter
 
 
 class Vision:

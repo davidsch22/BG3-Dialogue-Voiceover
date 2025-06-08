@@ -3,6 +3,7 @@ import keyboard
 import numpy as np
 import cv2 as cv
 import dxcam
+import requests
 from time import time
 from pygame import mixer
 from PIL import Image
@@ -10,6 +11,7 @@ from ui import UI
 from vision import Vision
 from filters import HsvFilter
 
+IMAGE_FILE = "text.png"
 TTS_FILE = "tts.wav"
 
 
@@ -97,18 +99,30 @@ class BG3DialogueVoiceoverClient:
 
                     # Convert the image from nparray to PIL
                     frame = Image.fromarray(text_img)
+                    if os.path.isfile(IMAGE_FILE):
+                        os.remove(IMAGE_FILE)
+                    frame.save(IMAGE_FILE)
 
-                    # TODO: Send processed image to server
-                    text = ""
-                    audio = 0
+                    # Send image to TTS API
+                    # CHANGE THIS VALUE TO WHERE THE SERVER'S ROUTE IS HOSTED
+                    IMAGE_TO_AUDIO_URL = "<<SET ME>>"
+                    with open(IMAGE_FILE, 'rb') as f:
+                        files = {"image": f}
+                        response = requests.post(
+                            IMAGE_TO_AUDIO_URL, files=files)
+                        f.close()
 
                     # If response has audio and audio isn't already playing
-                    if not mixer.music.get_busy():  # TODO: and response has audio
+                    if response.status_code == 200 and not mixer.music.get_busy():
+                        text = response.headers["text"]
                         self.ui.set_dialogue_text(text)
                         mixer.music.unload()
+                        # Save returned audio file
                         if os.path.isfile(TTS_FILE):
                             os.remove(TTS_FILE)
-                        # TODO: Save returned audio file
+                        with open(TTS_FILE, 'wb') as f:
+                            f.write(response.content)
+                            f.close()
                         # Play TTS audio
                         mixer.music.load(TTS_FILE)
                         mixer.music.play()
@@ -129,6 +143,8 @@ def main():
         app.camera.stop()
         mixer.music.stop()
         mixer.music.unload()
+        if os.path.isfile(IMAGE_FILE):
+            os.remove(IMAGE_FILE)
         if os.path.isfile(TTS_FILE):
             os.remove(TTS_FILE)
 
